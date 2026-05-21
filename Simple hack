@@ -1,0 +1,263 @@
+-- [[ CONFIGURATION ]] --
+local CORRECT_KEY = "lucabom101"
+
+-- [[ SERVICES ]] --
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- [[ STATE VARIABLES ]] --
+local States = {
+    Speed = false,
+    InfJump = false,
+    Noclip = false,
+    Fly = false
+}
+
+local originalSpeed = 16
+local customSpeed = 50
+local flySpeed = 50
+
+-- [[ HELPER FUNCTIONS ]] --
+local function Notify(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = 3
+    })
+end
+
+-- [[ CORE FEATURES ]] --
+
+-- Speed Changer Logic
+local function handleSpeed()
+    RunService.RenderStepped:Connect(function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if States.Speed then
+                hum.WalkSpeed = customSpeed
+            else
+                -- Fallback to default if not actively forcing custom speed
+                if hum.WalkSpeed == customSpeed then
+                    hum.WalkSpeed = originalSpeed
+                end
+            end
+        end
+    end)
+end
+
+-- Infinite Jump Logic
+UserInputService.JumpRequest:Connect(function()
+    if States.InfJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- Noclip Logic
+RunService.Stepped:Connect(function()
+    if States.Noclip and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Fly Logic
+local flyConnection
+local function handleFly()
+    RunService.RenderStepped:Connect(function()
+        if States.Fly and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LocalPlayer.Character.HumanoidRootPart
+            local camera = workspace.CurrentCamera
+            local moveDirection = Vector3.new(0, 0, 0)
+            
+            -- Mobile friendly control handling via Humanoid MoveDirection
+            if LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                moveDirection = LocalPlayer.Character:FindFirstChildOfClass("Humanoid").MoveDirection
+            end
+            
+            hrp.Velocity = moveDirection * flySpeed
+            
+            -- Keep character hovering
+            if moveDirection.Magnitude == 0 then
+                hrp.Velocity = Vector3.new(0, 0.1, 0)
+            end
+        end
+    end)
+end
+
+-- Initialize continuous loops
+handleSpeed()
+handleFly()
+
+-- [[ MOBILE-FRIENDLY INTERFACE ]] --
+local function CreateUI()
+    -- Main Screen Gui
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "MobileHub"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Main Container Frame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 250, 0, 320)
+    MainFrame.Position = UDim2.new(0.5, -125, 0.5, -160)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Active = true
+    MainFrame.Draggable = true -- Standard dragging for mobile touch
+    MainFrame.Parent = ScreenGui
+
+    -- UI Corner
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 10)
+    Corner.Parent = MainFrame
+
+    -- Title
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Mobile Script Hub"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 18
+    Title.Font = Enum.Font.SourceSansBold
+    Title.Parent = MainFrame
+
+    -- Toggle List Layout
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.Padding = UDim.new(0, 10)
+    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    local ButtonContainer = Instance.new("Frame")
+    ButtonContainer.Size = UDim2.new(1, 0, 1, -50)
+    ButtonContainer.Position = UDim2.new(0, 0, 0, 45)
+    ButtonContainer.BackgroundTransparency = 1
+    ButtonContainer.Parent = MainFrame
+    UIListLayout.Parent = ButtonContainer
+
+    -- Toggle Creator Function
+    local function CreateToggle(name, stateKey)
+        local Button = Instance.new("TextButton")
+        Button.Size = UDim2.new(0, 210, 0, 40)
+        Button.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+        Button.Text = name .. ": OFF"
+        Button.TextColor3 = Color3.fromRGB(200, 50, 50)
+        Button.TextSize = 16
+        Button.Font = Enum.Font.SourceSansBold
+        Button.Parent = ButtonContainer
+
+        local ButtonCorner = Instance.new("UICorner")
+        ButtonCorner.CornerRadius = UDim.new(0, 6)
+        ButtonCorner.Parent = Button
+
+        Button.MouseButton1Click:Connect(function()
+            States[stateKey] = not States[stateKey]
+            if States[stateKey] then
+                Button.Text = name .. ": ON"
+                Button.TextColor3 = Color3.fromRGB(50, 200, 50)
+                Button.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+            else
+                Button.Text = name .. ": OFF"
+                Button.TextColor3 = Color3.fromRGB(200, 50, 50)
+                Button.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+            end
+        end)
+    end
+
+    -- Generate Toggles
+    CreateToggle("Speed Changer", "Speed")
+    CreateToggle("Infinite Jump", "InfJump")
+    CreateToggle("Noclip", "Noclip")
+    CreateToggle("Fly", "Fly")
+    
+    -- Minimize/Close Button for Mobile Screen Real Estate
+    local MinimizeBtn = Instance.new("TextButton")
+    MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
+    MinimizeBtn.Position = UDim2.new(0, 10, 0, 10)
+    MinimizeBtn.Text = "H"
+    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MinimizeBtn.Parent = ScreenGui
+    
+    local MinCorner = Instance.new("UICorner")
+    MinCorner.CornerRadius = UDim.new(1, 0)
+    MinCorner.Parent = MinimizeBtn
+    
+    MinimizeBtn.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+    end)
+end
+
+-- [[ KEY SYSTEM INTERFACE ]] --
+local function CreateKeySystem()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "KeySystemHub"
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local KeyFrame = Instance.new("Frame")
+    KeyFrame.Size = UDim2.new(0, 280, 0, 150)
+    KeyFrame.Position = UDim2.new(0.5, -140, 0.5, -75)
+    KeyFrame.BackgroundColor3 = Color3.fromRGB(25 trick, 30, 30)
+    KeyFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    KeyFrame.Parent = ScreenGui
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = KeyFrame
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Enter Key to Access Hub"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 16
+    Title.Font = Enum.Font.SourceSansBold
+    Title.Parent = KeyFrame
+
+    local TextBox = Instance.new("TextBox")
+    TextBox.Size = UDim2.new(0, 220, 0, 35)
+    TextBox.Position = UDim2.new(0.5, -110, 0, 50)
+    TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+    TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TextBox.PlaceholderText = "Enter Key Here..."
+    TextBox.Text = ""
+    TextBox.Parent = KeyFrame
+    
+    local BoxCorner = Instance.new("UICorner")
+    BoxCorner.CornerRadius = UDim.new(0, 4)
+    BoxCorner.Parent = TextBox
+
+    local SubmitBtn = Instance.new("TextButton")
+    SubmitBtn.Size = UDim2.new(0, 100, 0, 35)
+    SubmitBtn.Position = UDim2.new(0.5, -50, 0, 100)
+    SubmitBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 100)
+    SubmitBtn.Text = "Verify"
+    SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SubmitBtn.Font = Enum.Font.SourceSansBold
+    SubmitBtn.Parent = KeyFrame
+
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 4)
+    BtnCorner.Parent = SubmitBtn
+
+    SubmitBtn.MouseButton1Click:Connect(function()
+        if TextBox.Text == CORRECT_KEY then
+            Notify("Success", "Correct Key! Loading Hub...")
+            ScreenGui:Destroy()
+            CreateUI()
+        else
+            Notify("Error", "Incorrect Key. Try again.")
+            TextBox.Text = ""
+        end
+    end)
+end
+
+-- Start checking key requirement
+CreateKeySystem()
