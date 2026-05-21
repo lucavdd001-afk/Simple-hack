@@ -1,198 +1,203 @@
--- Mobile Script Hub with Key System and Toggles
+-- // LucaBom101 Script Hub - Mobile Friendly
+local key = "lucabom101"
+
+-- Key System
+local userKey = game:GetService("UserInputService"):GetString() -- Simple prompt simulation, replace with actual input if needed
+-- For most mobile executors, just paste and it will ask or you can hardcode for testing
+
+if userKey \~= key then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Key System";
+        Text = "Invalid Key! Use: lucabom101";
+        Duration = 5;
+    })
+    return
+end
+
+-- Services
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local root = character:WaitForChild("HumanoidRootPart")
 
--- Key system code
-local correctCode = "lucabom101"
-local enteredCode = ""
-
--- Features state
+-- Variables
+local speedValue = 50
+local flying = false
+local noclipping = false
+local infJump = false
 local speedEnabled = false
-local infJumpEnabled = false
-local noclipEnabled = false
-local flyEnabled = false
 
--- Speed changer value
-local baseSpeed = 16
-local speedMultiplier = 3
+-- Simple Mobile-Friendly GUI (using Drawing + ScreenGui)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
--- UI for mobile input
-local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "ScriptHubGui"
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 280, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0.7, 0, 0.5, 0)
-Frame.Position = UDim2.new(0.15, 0, 0.25, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.Visible = true
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+Title.Text = "LucaBom101 Hub"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextScaled = true
+Title.Parent = MainFrame
 
-local TextLabel = Instance.new("TextLabel", Frame)
-TextLabel.Size = UDim2.new(1, 0, 0.2, 0)
-TextLabel.Position = UDim2.new(0, 0, 0, 0)
-TextLabel.Text = "Enter Key Code:"
-TextLabel.TextColor3 = Color3.new(1, 1, 1)
-TextLabel.BackgroundTransparency = 1
-TextLabel.TextScaled = true
+-- Toggle Function
+local function createToggle(name, yOffset, callback)
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(1, -20, 0, 50)
+    toggleFrame.Position = UDim2.new(0, 10, 0, yOffset)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    toggleFrame.Parent = MainFrame
 
-local TextBox = Instance.new("TextBox", Frame)
-TextBox.Size = UDim2.new(1, -10, 0.2, 0)
-TextBox.Position = UDim2.new(0, 5, 0.25, 0)
-TextBox.ClearTextOnFocus = true
-TextBox.Text = ""
-TextBox.PlaceholderText = "Enter code here"
-TextBox.TextScaled = true
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.new(1,1,1)
+    label.TextScaled = true
+    label.Parent = toggleFrame
 
-local Button = Instance.new("TextButton", Frame)
-Button.Size = UDim2.new(1, -10, 0.2, 0)
-Button.Position = UDim2.new(0, 5, 0.5, 0)
-Button.Text = "Submit Code"
-Button.TextScaled = true
-Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Button.TextColor3 = Color3.new(1, 1, 1)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.3, 0, 1, 0)
+    button.Position = UDim2.new(0.7, 0, 0, 0)
+    button.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    button.Text = "OFF"
+    button.TextColor3 = Color3.new(1,1,1)
+    button.Parent = toggleFrame
 
-local InfoLabel = Instance.new("TextLabel", Frame)
-InfoLabel.Size = UDim2.new(1, 0, 0.3, 0)
-InfoLabel.Position = UDim2.new(0, 0, 0.75, 0)
-InfoLabel.Text = ""
-InfoLabel.TextColor3 = Color3.new(1, 0, 0)
-InfoLabel.BackgroundTransparency = 1
-InfoLabel.TextScaled = true
-InfoLabel.TextWrapped = true
-
--- Features buttons container (hidden until correct code)
-local FeaturesFrame = Instance.new("Frame", ScreenGui)
-FeaturesFrame.Size = UDim2.new(0.7, 0, 0.5, 0)
-FeaturesFrame.Position = UDim2.new(0.15, 0, 0.25, 0)
-FeaturesFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-FeaturesFrame.Visible = false
-
-local function createToggleButton(name, position)
-    local btn = Instance.new("TextButton", FeaturesFrame)
-    btn.Size = UDim2.new(1, -20, 0.15, 0)
-    btn.Position = UDim2.new(0, 10, 0, position)
-    btn.Text = name .. ": OFF"
-    btn.TextScaled = true
-    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    return btn
+    local enabled = false
+    button.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        if enabled then
+            button.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+            button.Text = "ON"
+        else
+            button.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+            button.Text = "OFF"
+        end
+        callback(enabled)
+    end)
+    return button
 end
 
-local speedBtn = createToggleButton("Speed Changer", 10)
-local infJumpBtn = createToggleButton("Infinite Jump", 80)
-local noclipBtn = createToggleButton("Noclip", 150)
-local flyBtn = createToggleButton("Fly", 220)
-
--- Functions to toggle features
-local function toggleSpeed()
-    speedEnabled = not speedEnabled
-    if speedEnabled then
-        humanoid.WalkSpeed = baseSpeed * speedMultiplier
-        speedBtn.Text = "Speed Changer: ON"
-    else
-        humanoid.WalkSpeed = baseSpeed
-        speedBtn.Text = "Speed Changer: OFF"
-    end
-end
-
-local function toggleInfJump()
-    infJumpEnabled = not infJumpEnabled
-    infJumpBtn.Text = "Infinite Jump: " .. (infJumpEnabled and "ON" or "OFF")
-end
-
-local function toggleNoclip()
-    noclipEnabled = not noclipEnabled
-    noclipBtn.Text = "Noclip: " .. (noclipEnabled and "ON" or "OFF")
-end
-
-local flyVelocity = Instance.new("BodyVelocity")
-flyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-flyVelocity.Velocity = Vector3.new(0, 0, 0)
-
-local function toggleFly()
-    flyEnabled = not flyEnabled
-    flyBtn.Text = "Fly: " .. (flyEnabled and "ON" or "OFF")
-    if flyEnabled then
-        flyVelocity.Parent = rootPart
-    else
-        flyVelocity.Parent = nil
-    end
-end
-
--- Connect buttons to functions
-speedBtn.MouseButton1Click:Connect(toggleSpeed)
-infJumpBtn.MouseButton1Click:Connect(toggleInfJump)
-noclipBtn.MouseButton1Click:Connect(toggleNoclip)
-flyBtn.MouseButton1Click:Connect(toggleFly)
-
--- Key system check
-Button.MouseButton1Click:Connect(function()
-    if TextBox.Text == correctCode then
-        InfoLabel.TextColor3 = Color3.new(0, 1, 0)
-        InfoLabel.Text = "Access Granted!"
-        Frame.Visible = false
-        FeaturesFrame.Visible = true
-    else
-        InfoLabel.TextColor3 = Color3.new(1, 0, 0)
-        InfoLabel.Text = "Incorrect code. Try again!"
+-- Features
+createToggle("Speed Changer", 60, function(state)
+    speedEnabled = state
+    if state then
+        spawn(function()
+            while speedEnabled and humanoid do
+                humanoid.WalkSpeed = speedValue
+                RunService.Heartbeat:Wait()
+            end
+            if humanoid then humanoid.WalkSpeed = 16 end
+        end)
     end
 end)
 
--- Infinite jump handling
+createToggle("Infinite Jump", 120, function(state)
+    infJump = state
+end)
+
+createToggle("Noclip", 180, function(state)
+    noclipping = state
+    if state then
+        spawn(function()
+            while noclipping and character do
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+                RunService.Stepped:Wait()
+            end
+            -- Reset on disable
+            if character then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.Name \~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+createToggle("Fly", 240, function(state)
+    flying = state
+    if flying then
+        local bv = Instance.new("BodyVelocity")
+        bv.Name = "FlyVelocity"
+        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.Parent = root
+
+        local bg = Instance.new("BodyGyro")
+        bg.Name = "FlyGyro"
+        bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+        bg.P = 12500
+        bg.Parent = root
+
+        spawn(function()
+            while flying and root and bv and bg do
+                local cam = workspace.CurrentCamera
+                local moveDir = Vector3.new(0,0,0)
+                
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0,1,0) end
+
+                bv.Velocity = moveDir.Unit * speedValue * 2
+                bg.CFrame = cam.CFrame
+                RunService.Heartbeat:Wait()
+            end
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end)
+    end
+end)
+
+-- Close Button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Parent = MainFrame
+closeBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+StarterGui:SetCore("SendNotification", {
+    Title = "LucaBom101 Hub";
+    Text = "Loaded Successfully! Key: lucabom101";
+    Duration = 5;
+})
+
+-- Infinite Jump Handler
 UserInputService.JumpRequest:Connect(function()
-    if infJumpEnabled then
+    if infJump and humanoid then
         humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
 
--- Noclip handling
-RunService.Stepped:Connect(function()
-    if noclipEnabled then
-        for _, part in pairs(character:GetChildren()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    else
-        for _, part in pairs(character:GetChildren()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-            end
-        end
-    end
-end)
-
--- Fly handling (simple upward/downward with jump/crouch)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if flyEnabled and not gameProcessed then
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.Keyboard then
-            -- Basic fly control: Ascend with jump, descend with left control/crouch (if available)
-            if input.KeyCode == Enum.KeyCode.Space then
-                flyVelocity.Velocity = Vector3.new(0, 50, 0)
-            elseif input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.C then
-                flyVelocity.Velocity = Vector3.new(0, -50, 0)
-            end
-        end
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if flyEnabled then
-        if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.C then
-            flyVelocity.Velocity = Vector3.new(0, 0, 0)
-        end
-    end
-end)
-
--- Reset speed if character respawns
-player.CharacterAdded:Connect(function(char)
-    character = char
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
-    humanoid.WalkSpeed = baseSpeed
+-- Character Respawn Handler
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    root = newChar:WaitForChild("HumanoidRootPart")
 end)
